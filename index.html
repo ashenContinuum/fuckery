@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7 Minute Workout Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .timer-display {
+            font-size: 5rem;
+            font-weight: bold;
+            color: #e74c3c;
+            margin: 30px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .status {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            height: 30px;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        #startBtn {
+            background: linear-gradient(to right, #27ae60, #2ecc71);
+            color: white;
+        }
+        
+        #pauseBtn {
+            background: linear-gradient(to right, #f39c12, #f1c40f);
+            color: white;
+        }
+        
+        #resetBtn {
+            background: linear-gradient(to right, #e74c3c, #c0392b);
+            color: white;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .workout-info {
+            background-color: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .workout-info h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .workout-info p {
+            color: #7f8c8d;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .progress-container {
+            height: 10px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(to right, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 1s linear;
+        }
+        
+        .cycle-info {
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin-top: 15px;
+        }
+        
+        @media (max-width: 500px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .timer-display {
+                font-size: 3.5rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>7 Minute Workout</h1>
+        
+        <!-- Timer display -->
+        <div class="timer-display" id="timer">30:00</div>
+        
+        <!-- Status indicator -->
+        <div class="status" id="status">Ready to start!</div>
+        
+        <!-- Progress bar -->
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="controls">
+            <button id="startBtn">Start Workout</button>
+            <button id="pauseBtn">Pause</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+        
+        <!-- Cycle information -->
+        <div class="cycle-info" id="cycleInfo">Work: 30s | Rest: 10s</div>
+        
+        <!-- Workout information -->
+        <div class="workout-info">
+            <h2>How It Works</h2>
+            <p>This workout consists of alternating 30 seconds of exercise with 10 seconds of rest.</p>
+            <p>Complete 7 rounds for a full 7-minute workout.</p>
+        </div>
+    </div>
+
+    <!-- Audio elements -->
+    <audio id="whistleSound" preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb25vQmFzZVVW5QAAAA8AAAAEAAAATGluZQAAAA8AAAAEAAAAF3JlZmVybmluZwAAAAAAAAAFAAAAB3JlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAAAAAFAAAACXJlZmVyZW50aW5nAAAA

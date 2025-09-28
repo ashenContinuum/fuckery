@@ -1,219 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>7‑Minute Workout Timer</title>
+<meta charset="UTF-8">
+<title>7‑Minute Workout Timer</title>
 
-  <!-- --------------------------------------------------------------
-       Simple styling – feel free to change colours / fonts.
-       -------------------------------------------------------------- -->
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-        Helvetica, Arial, sans-serif;
-      background: #f0f4f8;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-
-    h1 {
-      margin-bottom: 0.5rem;
-    }
-
-    #timer {
-      font-size: 6rem;
-      font-weight: bold;
-      margin: 1rem 0;
-    }
-
-    #phase {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-    }
-
-    button {
-      padding: 0.8rem 1.5rem;
-      font-size: 1rem;
-      border: none;
-      border-radius: 6px;
-      background: #0077cc;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover { background: #005fa3; }
-
-    /* Simple responsive tweak */
-    @media (max-width: 600px) {
-      #timer { font-size: 4rem; }
-    }
-  </style>
+<!-- ==============================================================
+     iOS‑style CSS (all in one file)
+================================================================== -->
+<style>
+  :root {
+    --bg:          #f2f5f9;
+    --card-bg:     #ffffff;
+    --accent:      #0a84ff;   /* iOS teal */
+    --text-primary:#111827;
+    --text-secondary:#6b7280;
+    --shadow:      rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+                Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text-primary);
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100vh;padding-top:2rem
+  }
+  h1{font-size:1.8rem;margin-bottom:.5rem}
+  .card{
+    background:var(--card-bg);
+    border-radius:18px;
+    box-shadow:0 4px 12px var(--shadow);
+    width:90%;max-width:380px;padding:2rem 1.5rem;
+    margin-bottom:1.5rem
+  }
+  #phase{font-size:1.25rem;color:var(--text-secondary)}
+  #timer{font-size:5rem;font-weight:600;margin:.8rem 0;line-height:1}
+  .btn{
+    background:var(--accent);color:#fff;border:none;
+    border-radius:12px;padding:.6rem 1.2rem;font-size:1rem;
+    cursor:pointer;transition:background .2s
+  }
+  .btn:hover{background:#006edc}
+  .secondary-btn{
+    background:#e5e7eb;color:#111827
+  }
+  .secondary-btn:hover{background:#d1d5db}
+  .controls{display:flex;gap:.8rem;justify-content:center;margin-top:.6rem}
+  /* ---------- Progress bar (iOS style) ---------- */
+  .progress-wrapper{
+    height:6px;background:#e5e7eb;border-radius:3px;
+    overflow:hidden;margin-top:1.2rem
+  }
+  .progress-bar{
+    height:100%;width:0%;background:var(--accent);
+    transition:width .4s linear
+  }
+  /* ---------- Settings modal (hidden by default) ---------- */
+  #settingsModal{
+    position:fixed; inset:0; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,.3);z-index:10
+  }
+  .modal-content{
+    background:#fff;border-radius:18px;padding:1.5rem;
+    width:90%;max-width:340px;box-shadow:0 8px 24px var(--shadow)
+  }
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem}
+  .modal-header h2{font-size:1.25rem}
+  .close-modal{
+    background:none;border:none;font-size:1.4rem;cursor:pointer
+  }
+  .form-group{margin-bottom:.9rem}
+  label{display:block;font-weight:500;margin-bottom:.3rem;color:var(--text-secondary)}
+  input[type=number]{
+    width:100%;padding:.5rem;border:1px solid #d1d5db;
+    border-radius:8px;font-size:1rem
+  }
+</style>
 </head>
 
 <body>
-  <h1>7‑Minute Workout Timer</h1>
+<h1>7‑Minute Workout</h1>
 
-  <!-- Text that tells you if you’re working or resting -->
+<div class="card">
   <div id="phase">Ready?</div>
-
-  <!-- Big countdown number -->
   <div id="timer">00</div>
 
-  <!-- Start / Stop button -->
-  <button id="toggleBtn">Start</button>
+  <!-- Primary control buttons -->
+  <div class="controls">
+    <button id="startPauseBtn" class="btn">Start</button>
+    <button id="stopBtn"      class="secondary-btn">Stop</button>
+    <button id="resetBtn"     class="secondary-btn">Reset</button>
+  </div>
 
-  <!-- --------------------------------------------------------------
-       Audio elements – hidden, we just trigger them from JS.
-       You can replace the src URLs with your own files if you like.
-       -------------------------------------------------------------- -->
-  <!-- Whistle: played at the start and end of each work interval -->
-  <audio id="whistle" preload="auto"
-    src="https://raw.githubusercontent.com/mdn/learning-area/master/html/multimedia-and-embedding/audio/whistle.mp3">
-    Your browser does not support the &lt;audio&gt; element.
-  </audio>
+  <!-- Overall progress bar -->
+  <div class="progress-wrapper">
+    <div class="progress-bar" id="overallProgress"></div>
+  </div>
+</div>
 
-  <!-- Tick: one short click per second during the 30‑second work phase -->
-  <audio id="tick" preload="auto"
-    src="https://raw.githubusercontent.com/mdn/learning-area/master/html/multimedia-and-embedding/audio/tick.wav">
-    Your browser does not support the &lt;audio&gt; element.
-  </audio>
+<!-- Settings button -->
+<div><button id="openSettings" class="secondary-btn">⚙️ Settings</button></div>
 
-  <!-- --------------------------------------------------------------
-       JavaScript – all the timer logic lives here.
-       -------------------------------------------------------------- -->
-  <script>
-    // -----------------------------------------------------------------
-    // Configuration constants (easy to tweak)
-    // -----------------------------------------------------------------
-    const WORK_SECONDS = 30;   // length of a work interval
-    const REST_SECONDS = 10;   // length of a rest interval
+<!-- --------------------------------------------------------------
+     Settings modal – hidden until the user clicks the gear icon.
+----------------------------------------------------------------- -->
+<div id="settingsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Settings</h2>
+      <button class="close-modal" aria-label="Close">&times;</button>
+    </div>
 
-    // -----------------------------------------------------------------
-    // Grab UI elements once, so we don’t query the DOM repeatedly.
-    // -----------------------------------------------------------------
-    const timerEl   = document.getElementById('timer');
-    const phaseEl   = document.getElementById('phase');
-    const buttonEl  = document.getElementById('toggleBtn');
+    <div class="form-group">
+      <label for="workSec">Work duration (seconds)</label>
+      <input type="number" id="workSec" min="5" max="300" step="1">
+    </div>
 
-    // Audio objects – we’ll call .play() on them later
-    const whistleAudio = document.getElementById('whistle');
-    const tickAudio    = document.getElementById('tick');
+    <div class="form-group">
+      <label for="restSec">Rest duration (seconds)</label>
+      <input type="number" id="restSec" min="3" max="180" step="1">
+    </div>
 
-    // -----------------------------------------------------------------
-    // State variables that keep track of where we are in the cycle.
-    // -----------------------------------------------------------------
-    let intervalID = null;      // ID returned by setInterval()
-    let secondsLeft = 0;        // countdown value shown on screen
-    let isWorking   = false;    // true → work phase, false → rest phase
-    let isRunning   = false;    // true while the timer is ticking
+    <div class="form-group">
+      <label for="cycles">Number of cycles</label>
+      <input type="number" id="cycles" min="1" max="20" step="1">
+    </div>
 
-    /**
-     * Format a number as two‑digit string (e.g. 5 → "05").
-     */
-    function pad(num) {
-      return num.toString().padStart(2, '0');
-    }
+    <button id="saveSettings" class="btn" style="width:100%;">Save & Close</button>
+  </div>
+</div>
 
-    /**
-     * Update UI to reflect current phase and remaining seconds.
-     */
-    function render() {
-      timerEl.textContent = pad(secondsLeft);
-      phaseEl.textContent = isWorking ? 'Work' : (isRunning ? 'Rest' : 'Ready?');
-    }
+<!-- --------------------------------------------------------------
+     Audio elements – hidden, we just trigger them from JS.
+----------------------------------------------------------------- -->
+<audio id="whistle" preload="auto"
+  src="https://raw.githubusercontent.com/mdn/learning-area/master/html/multimedia-and-embedding/audio/whistle.mp3">
+  Your browser does not support the <code>audio</code> element.
+</audio>
 
-    /**
-     * Start a new work interval:
-     *   - set secondsLeft to WORK_SECONDS,
-     *   - play the starting whistle,
-     *   - mark that we are in "work" mode.
-     */
-    function startWork() {
-      isWorking = true;
-      secondsLeft = WORK_SECONDS;
-      whistleAudio.currentTime = 0; // rewind in case it was still playing
+<audio id="tick" preload="auto"
+  src="https://raw.githubusercontent.com/mdn/learning-area/master/html/multimedia-and-embedding/audio/tick.wav">
+  Your browser does not support the <code>audio</code> element.
+</audio>
+
+<!-- --------------------------------------------------------------
+     JavaScript – all timer logic lives here.
+----------------------------------------------------------------- -->
+<script>
+/* ==============================================================
+   CONFIGURATION (defaults) – these are stored in localStorage
+   so they survive a page reload.
+================================================================= */
+const DEFAULTS = {
+  workSec: 30,
+  restSec: 10,
+  cycles : 8           // 8 × (30+10) = 320 s ≈ 5 min 20 s; adjust as you like
+};
+
+/* --------------------------------------------------------------
+   Load saved settings from localStorage, falling back to defaults.
+-------------------------------------------------------------- */
+function loadSettings() {
+  const stored = JSON.parse(localStorage.getItem('workout-settings')) || {};
+  return {
+    workSec: Number(stored.workSec) || DEFAULTS.workSec,
+    restSec: Number(stored.restSec) || DEFAULTS.restSec,
+    cycles : Number(stored.cycles ) || DEFAULTS.cycles
+  };
+}
+
+/* --------------------------------------------------------------
+   Save the current settings back to localStorage.
+-------------------------------------------------------------- */
+function saveSettings(settings) {
+  localStorage.setItem('workout-settings', JSON.stringify(settings));
+}
+
+/* --------------------------------------------------------------
+   Grab UI elements once – avoids repeated DOM look‑ups.
+-------------------------------------------------------------- */
+const timerEl          = document.getElementById('timer');
+const phaseEl          = document.getElementById('phase');
+const startPauseBtn    = document.getElementById('startPauseBtn');
+const stopBtn          = document.getElementById('stopBtn');
+const resetBtn         = document.getElementById('resetBtn');
+const progressBar      = document.getElementById('overallProgress');
+
+const openSettingsBtn  = document.getElementById('openSettings');
+const settingsModal    = document.getElementById('settingsModal');
+const closeModalBtn    = document.querySelector('.close-modal');
+const saveSettingsBtn  = document.getElementById('saveSettings');
+
+const workInput        = document.getElementById('workSec');
+const restInput        = document.getElementById('restSec');
+const cyclesInput      = document.getElementById('cycles');
+
+const whistleAudio     = document.getElementById('whistle');
+const tickAudio        = document.getElementById('tick');
+
+/* --------------------------------------------------------------
+   STATE variables – keep track of where we are.
+-------------------------------------------------------------- */
+let intervalID   = null;          // ID from setInterval()
+let secondsLeft  = 0;             // countdown for the current phase
+let isWorking    = false;         // true → work, false → rest
+let isRunning    = false;         // timer active?
+let completedCycles = 0;          // how many full (work+rest) cycles finished
+
+// Settings that can be changed by the user.
+let settings = loadSettings();
+
+/* --------------------------------------------------------------
+   Initialise UI with saved settings.
+-------------------------------------------------------------- */
+function populateSettingsUI() {
+  workInput.value  = settings.workSec;
+  restInput.value  = settings.restSec;
+  cyclesInput.value= settings.cycles;
+}
+populateSettingsUI();
+
+/* ==============================================================
+   Helper functions
+================================================================ */
+
+/* Pad a number to two digits, e.g. 5 → "05" */
+function pad(num){ return num.toString().padStart(2,'0'); }
+
+/* Update the visible timer and phase text */
+function render(){
+  timerEl.textContent = pad(secondsLeft);
+  phaseEl.textContent = isRunning
+        ? (isWorking ? 'Work' : 'Rest')
+        : (secondsLeft===0 && completedCycles===0 ? 'Ready?' : 'Paused');
+}
+
+/* Update the overall progress bar.
+   Progress = (completed cycles + fraction of current cycle) / total cycles */
+function updateProgressBar(){
+  const totalSeconds = settings.cycles * (settings.workSec + settings.restSec);
+  const elapsedSeconds = completedCycles * (settings.workSec + settings.restSec)
+                         + (isWorking ? (settings.workSec - secondsLeft) : (settings.workSec + settings.restSec - secondsLeft));
+  const percent = Math.min(100, (elapsedSeconds / totalSeconds) * 100);
+  progressBar.style.width = `${percent}%`;
+}
+
+/* --------------------------------------------------------------
+   Phase starters – set the appropriate counters and play sounds.
+-------------------------------------------------------------- */
+function startWork(){
+  isWorking = true;
+  secondsLeft = settings.workSec;
+  whistleAudio.currentTime = 0; // rewind in case it was still playing
+  whistleAudio.play();
+  render();
+}
+
+function startRest(){
+  isWorking = false;
+  secondsLeft = settings.restSec;
+  render();
+}
+
+/* --------------------------------------------------------------
+   Core tick – runs once per second while the timer is active.
+-------------------------------------------------------------- */
+function tick(){
+  if (isWorking){
+    // CloneNode forces a fresh playback so we can hear every click.
+    const click = tickAudio.cloneNode();
+    click.play();
+  }
+
+  secondsLeft--;
+
+  // Phase transition
+  if (secondsLeft <= 0){
+    if (isWorking){
+      // Work finished → end‑whistle then go to rest
+      whistleAudio.currentTime = 0;
       whistleAudio.play();
-      render();
-    }
-
-    /**
-     * Start a rest interval:
-     *   - set secondsLeft to REST_SECONDS,
-     *   - mark that we are NOT working.
-     */
-    function startRest() {
-      isWorking = false;
-      secondsLeft = REST_SECONDS;
-      render();
-    }
-
-    /**
-     * This runs once per second while the timer is active.
-     * It decrements the counter and decides when to switch phases.
-     */
-    function tick() {
-      // If we are in a work phase, play the ticking sound each second.
-      if (isWorking) {
-        // CloneNode trick forces the audio to replay even if it’s still playing.
-        const click = tickAudio.cloneNode();
-        click.play();
+      startRest();
+    }else{
+      // Rest finished → one full cycle completed
+      completedCycles++;
+      if (completedCycles >= settings.cycles){
+        // All cycles done – stop automatically
+        stopTimer(true);   // true = final stop (no pause)
+        return;
       }
-
-      secondsLeft--;
-
-      // When the counter reaches zero we need to flip between work/rest.
-      if (secondsLeft <= 0) {
-        if (isWorking) {
-          // End of a work interval → play ending whistle then start rest.
-          whistleAudio.currentTime = 0;
-          whistleAudio.play();
-          startRest();
-        } else {
-          // End of a rest interval → automatically begin the next work block.
-          startWork();
-        }
-      }
-
-      render(); // keep UI in sync
+      startWork();         // begin next work interval
     }
+  }
 
-    /**
-     * Start the whole cycle (work → rest → work …) or pause it.
-     */
-    function toggleTimer() {
-      if (!isRunning) {
-        // ----------- START ----------
-        isRunning = true;
-        buttonEl.textContent = 'Pause';
+  render();
+  updateProgressBar();
+}
 
-        // If we’re starting from a completely stopped state,
-        // initialise the first work block.
-        if (secondsLeft === 0 && !intervalID) {
-          startWork();
-        }
+/* --------------------------------------------------------------
+   Timer control functions
+-------------------------------------------------------------- */
+function startTimer(){
+  if (isRunning) return;            // already running – nothing to do
 
-        // setInterval will call tick() once per second.
-        intervalID = setInterval(tick, 1000);
-      } else {
-        // ----------- PAUSE ----------
-        isRunning = false;
-        buttonEl.textContent = 'Start';
-        clearInterval(intervalID);
-        intervalID = null;
-      }
-    }
+  isRunning = true;
+  startPauseBtn.textContent = 'Pause';
 
-    // -----------------------------------------------------------------
-    // Hook up the button.
-    // -----------------------------------------------------------------
-    buttonEl.addEventListener('click', toggleTimer);
+  // If we are starting from a completely fresh state, begin the first work.
+  if (!intervalID){
+    completedCycles = 0;
+    startWork();
+    intervalID = setInterval(tick, 1000);
+  }
+}
 
-    // Initial render (shows 00 and “Ready?”)
-    render();
-  </script>
+function pauseTimer(){
+  if (!isRunning) return;
+  isRunning = false;
+  startPauseBtn.textContent = 'Start';
+  clearInterval(intervalID);
+  intervalID = null;
+}
+
+function stopTimer(finalStop=false){
+  // "Stop" means: pause *and* keep the current numbers (so you can resume).
+  // If finalStop===true we also reset everything to the beginning.
+  if (!isRunning && !finalStop) return;   // nothing to do
+
+  clearInterval(intervalID);
+  intervalID = null;
+  isRunning = false;
+  startPauseBtn.textContent = 'Start';
+
+  if (finalStop){
+    secondsLeft = 0;
+    completedCycles = 0;
+    isWorking = false;
+  }
+
+  render();
+  updateProgressBar();
+}
+
+function resetTimer(){
+  // Reset everything to the very beginning, regardless of running state.
+  stopTimer(true);
+}
+
+/* --------------------------------------------------------------
+   Button event listeners
+-------------------------------------------------------------- */
+startPauseBtn.addEventListener('click', () => {
+  if (isRunning) pauseTimer(); else startTimer();
+});
+
+stopBtn.addEventListener('click', () => pauseTimer());
+
+resetBtn.addEventListener('click', () => resetTimer());
+
+/* --------------------------------------------------------------
+   Settings modal logic
+-------------------------------------------------------------- */
+openSettingsBtn.addEventListener('click', () => {
+  settingsModal.style.display = 'flex';
+});
+closeModalBtn.addEventListener('click', () => {
+  settingsModal.style.display = 'none';
+});
+saveSettingsBtn.addEventListener('click', () => {
+  // Grab values, validate a little, then store.
+  const w = Number(workInput.value);
+  const r = Number(restInput.value);
+  const c = Number(cyclesInput.value);
+
+  if (w < 5 || r < 3 || c < 1){
+    alert('Please use reasonable numbers (work ≥5 s, rest ≥3 s, cycles ≥1).');
+    return;
+  }
+
+  settings.workSec = w;
+  settings.restSec = r;
+  settings.cycles   = c;
+  saveSettings(settings);
+  settingsModal.style.display = 'none';
+
+  // If a timer is already running we keep the current state,
+  // otherwise reset to reflect new totals.
+  if (!isRunning) resetTimer();
+});
+
+/* --------------------------------------------------------------
+   Initial render (shows 00 and “Ready?”)
+-------------------------------------------------------------- */
+render();
+updateProgressBar();
+
+</script>
 </body>
 </html>

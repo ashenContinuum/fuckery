@@ -1,241 +1,219 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>7 Minute Workout Timer</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f0f0f0;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        
-        h1 {
-            color: #333;
-        }
-        
-        .timer-display {
-            font-size: 4em;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #2c5aa0;
-        }
-        
-        .workout-phase {
-            font-size: 1.5em;
-            margin-bottom: 20px;
-            height: 30px;
-        }
-        
-        .controls {
-            margin: 20px 0;
-        }
-        
-        button {
-            padding: 12px 24px;
-            font-size: 1em;
-            margin: 5px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            background-color: #2c5aa0;
-            color: white;
-        }
-        
-        button:hover {
-            background-color: #1a3d7a;
-        }
-        
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>7 Minute Workout Timer</h1>
-        
-        <!-- Display for the timer -->
-        <div class="timer-display" id="timer">30</div>
-        
-        <!-- Display for workout phase (workout/rest) -->
-        <div class="workout-phase" id="phase">WORKOUT</div>
-        
-        <!-- Control buttons -->
-        <div class="controls">
-            <button id="startBtn">Start Workout</button>
-            <button id="pauseBtn" disabled>Pause</button>
-            <button id="resetBtn">Reset</button>
-        </div>
-    </div>
+  <meta charset="UTF-8" />
+  <title>7‑Minute Workout Timer</title>
 
-    <script>
-        // Timer variables
-        let timer; // Stores the setInterval reference
-        let timeLeft = 30; // Initial time (30 seconds for workout)
-        let isWorkout = true; // Flag to track if we're in workout or rest phase
-        let isRunning = false; // Flag to track if timer is running
-        
-        // Get DOM elements
-        const timerDisplay = document.getElementById('timer');
-        const phaseDisplay = document.getElementById('phase');
-        const startBtn = document.getElementById('startBtn');
-        const pauseBtn = document.getElementById('pauseBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        
-        // Create audio context for sounds
-        let audioContext;
-        let oscillator;
-        
-        // Initialize audio context on first user interaction
-        function initAudio() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
+  <!-- --------------------------------------------------------------
+       Simple styling – feel free to change colours / fonts.
+       -------------------------------------------------------------- -->
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, sans-serif;
+      background: #f0f4f8;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    h1 {
+      margin-bottom: 0.5rem;
+    }
+
+    #timer {
+      font-size: 6rem;
+      font-weight: bold;
+      margin: 1rem 0;
+    }
+
+    #phase {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      padding: 0.8rem 1.5rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      background: #0077cc;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover { background: #005fa3; }
+
+    /* Simple responsive tweak */
+    @media (max-width: 600px) {
+      #timer { font-size: 4rem; }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>7‑Minute Workout Timer</h1>
+
+  <!-- Text that tells you if you’re working or resting -->
+  <div id="phase">Ready?</div>
+
+  <!-- Big countdown number -->
+  <div id="timer">00</div>
+
+  <!-- Start / Stop button -->
+  <button id="toggleBtn">Start</button>
+
+  <!-- --------------------------------------------------------------
+       Audio elements – hidden, we just trigger them from JS.
+       You can replace the src URLs with your own files if you like.
+       -------------------------------------------------------------- -->
+  <!-- Whistle: played at the start and end of each work interval -->
+  <audio id="whistle" preload="auto"
+    src="https://raw.githubusercontent.com/mdn/learning-area/master/html/multimedia-and-embedding/audio/whistle.mp3">
+    Your browser does not support the &lt;audio&gt; element.
+  </audio>
+
+  <!-- Tick: one short click per second during the 30‑second work phase -->
+  <audio id="tick" preload="auto"
+    src="https://raw.githubusercontent.com/mdn/learning-area/master/html/multimedia-and-embedding/audio/tick.wav">
+    Your browser does not support the &lt;audio&gt; element.
+  </audio>
+
+  <!-- --------------------------------------------------------------
+       JavaScript – all the timer logic lives here.
+       -------------------------------------------------------------- -->
+  <script>
+    // -----------------------------------------------------------------
+    // Configuration constants (easy to tweak)
+    // -----------------------------------------------------------------
+    const WORK_SECONDS = 30;   // length of a work interval
+    const REST_SECONDS = 10;   // length of a rest interval
+
+    // -----------------------------------------------------------------
+    // Grab UI elements once, so we don’t query the DOM repeatedly.
+    // -----------------------------------------------------------------
+    const timerEl   = document.getElementById('timer');
+    const phaseEl   = document.getElementById('phase');
+    const buttonEl  = document.getElementById('toggleBtn');
+
+    // Audio objects – we’ll call .play() on them later
+    const whistleAudio = document.getElementById('whistle');
+    const tickAudio    = document.getElementById('tick');
+
+    // -----------------------------------------------------------------
+    // State variables that keep track of where we are in the cycle.
+    // -----------------------------------------------------------------
+    let intervalID = null;      // ID returned by setInterval()
+    let secondsLeft = 0;        // countdown value shown on screen
+    let isWorking   = false;    // true → work phase, false → rest phase
+    let isRunning   = false;    // true while the timer is ticking
+
+    /**
+     * Format a number as two‑digit string (e.g. 5 → "05").
+     */
+    function pad(num) {
+      return num.toString().padStart(2, '0');
+    }
+
+    /**
+     * Update UI to reflect current phase and remaining seconds.
+     */
+    function render() {
+      timerEl.textContent = pad(secondsLeft);
+      phaseEl.textContent = isWorking ? 'Work' : (isRunning ? 'Rest' : 'Ready?');
+    }
+
+    /**
+     * Start a new work interval:
+     *   - set secondsLeft to WORK_SECONDS,
+     *   - play the starting whistle,
+     *   - mark that we are in "work" mode.
+     */
+    function startWork() {
+      isWorking = true;
+      secondsLeft = WORK_SECONDS;
+      whistleAudio.currentTime = 0; // rewind in case it was still playing
+      whistleAudio.play();
+      render();
+    }
+
+    /**
+     * Start a rest interval:
+     *   - set secondsLeft to REST_SECONDS,
+     *   - mark that we are NOT working.
+     */
+    function startRest() {
+      isWorking = false;
+      secondsLeft = REST_SECONDS;
+      render();
+    }
+
+    /**
+     * This runs once per second while the timer is active.
+     * It decrements the counter and decides when to switch phases.
+     */
+    function tick() {
+      // If we are in a work phase, play the ticking sound each second.
+      if (isWorking) {
+        // CloneNode trick forces the audio to replay even if it’s still playing.
+        const click = tickAudio.cloneNode();
+        click.play();
+      }
+
+      secondsLeft--;
+
+      // When the counter reaches zero we need to flip between work/rest.
+      if (secondsLeft <= 0) {
+        if (isWorking) {
+          // End of a work interval → play ending whistle then start rest.
+          whistleAudio.currentTime = 0;
+          whistleAudio.play();
+          startRest();
+        } else {
+          // End of a rest interval → automatically begin the next work block.
+          startWork();
         }
-        
-        // Play a beep sound at specified frequency for 100ms
-        function playBeep(frequency, duration = 100) {
-            initAudio();
-            
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = frequency;
-            oscillator.type = 'sine';
-            
-            // Set volume to 0.1 (quiet)
-            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration/1000);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + duration/1000);
+      }
+
+      render(); // keep UI in sync
+    }
+
+    /**
+     * Start the whole cycle (work → rest → work …) or pause it.
+     */
+    function toggleTimer() {
+      if (!isRunning) {
+        // ----------- START ----------
+        isRunning = true;
+        buttonEl.textContent = 'Pause';
+
+        // If we’re starting from a completely stopped state,
+        // initialise the first work block.
+        if (secondsLeft === 0 && !intervalID) {
+          startWork();
         }
-        
-        // Play start whistle sound
-        function playStartWhistle() {
-            playBeep(880, 200); // High pitch
-            setTimeout(() => playBeep(660, 200), 100);
-        }
-        
-        // Play end whistle sound
-        function playEndWhistle() {
-            playBeep(660, 200); // Low pitch
-            setTimeout(() => playBeep(880, 200), 100);
-        }
-        
-        // Update the timer display
-        function updateDisplay() {
-            timerDisplay.textContent = timeLeft;
-            
-            // Change color based on phase
-            if (isWorkout) {
-                timerDisplay.style.color = '#2c5aa0';
-                phaseDisplay.textContent = 'WORKOUT';
-            } else {
-                timerDisplay.style.color = '#e74c3c';
-                phaseDisplay.textContent = 'REST';
-            }
-        }
-        
-        // Handle timer tick
-        function tick() {
-            timeLeft--;
-            updateDisplay();
-            
-            // Play chime sound for each second during workout
-            if (isWorkout && timeLeft > 0) {
-                playBeep(440, 50); // Medium pitch chime
-            }
-            
-            // Check if timer has reached zero
-            if (timeLeft <= 0) {
-                clearInterval(timer);
-                
-                // Play end whistle when workout finishes
-                if (isWorkout) {
-                    playEndWhistle();
-                }
-                
-                // Switch between workout and rest phases
-                if (isWorkout) {
-                    // Workout ends, switch to rest
-                    timeLeft = 10; // 10 seconds of rest
-                    isWorkout = false;
-                    playStartWhistle(); // Start whistle for rest period
-                } else {
-                    // Rest ends, switch back to workout
-                    timeLeft = 30; // 30 seconds of workout
-                    isWorkout = true;
-                    playStartWhistle(); // Start whistle for workout period
-                }
-                
-                updateDisplay();
-                
-                // Restart timer for new phase
-                startTimer();
-            }
-        }
-        
-        // Start the timer
-        function startTimer() {
-            if (isRunning) return; // Prevent multiple timers
-            
-            isRunning = true;
-            startBtn.disabled = true;
-            pauseBtn.disabled = false;
-            
-            // Play start whistle at beginning of workout
-            if (timeLeft === 30 && isWorkout) {
-                playStartWhistle();
-            }
-            
-            timer = setInterval(tick, 1000);
-        }
-        
-        // Pause the timer
-        function pauseTimer() {
-            clearInterval(timer);
-            isRunning = false;
-            startBtn.disabled = false;
-            pauseBtn.disabled = true;
-        }
-        
-        // Reset the timer
-        function resetTimer() {
-            clearInterval(timer);
-            timeLeft = 30;
-            isWorkout = true;
-            isRunning = false;
-            
-            startBtn.disabled = false;
-            pauseBtn.disabled = true;
-            
-            updateDisplay();
-        }
-        
-        // Event listeners for buttons
-        startBtn.addEventListener('click', startTimer);
-        pauseBtn.addEventListener('click', pauseTimer);
-        resetBtn.addEventListener('click', resetTimer);
-        
-        // Initialize display
-        updateDisplay();
-    </script>
+
+        // setInterval will call tick() once per second.
+        intervalID = setInterval(tick, 1000);
+      } else {
+        // ----------- PAUSE ----------
+        isRunning = false;
+        buttonEl.textContent = 'Start';
+        clearInterval(intervalID);
+        intervalID = null;
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // Hook up the button.
+    // -----------------------------------------------------------------
+    buttonEl.addEventListener('click', toggleTimer);
+
+    // Initial render (shows 00 and “Ready?”)
+    render();
+  </script>
 </body>
 </html>
